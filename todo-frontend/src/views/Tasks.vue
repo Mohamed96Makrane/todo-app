@@ -13,13 +13,27 @@
     <ul class="task-list">
       <li v-for="task in taskStore.tasks" :key="task.id" class="task-item">
         <div class="task-text">
-          <div class="task-title">{{ task.title }}</div>
-          <div class="task-description">{{ task.description }}</div>
+          <!-- Mode édition -->
+          <template v-if="editingTaskId === task.id">
+            <input v-model="editTitle" placeholder="Titre" />
+            <input v-model="editDescription" placeholder="Description" />
+          </template>
+
+          <!-- Mode affichage normal -->
+          <template v-else>
+            <div class="task-title">{{ task.title }}</div>
+            <div class="task-description">{{ task.description }}</div>
+          </template>
+
           <div class="task-status" :class="task.status">{{ task.status }}</div>
         </div>
+
         <div class="task-buttons">
-          <button @click="deleteTask(task.id)" class="btn-delete">Supprimer</button>
-          <button @click="toggleStatus(task)" class="btn-toggle">Changer statut</button>
+          <button v-if="editingTaskId !== task.id" @click="deleteTask(task.id)" class="btn-delete">Supprimer</button>
+          <button v-if="editingTaskId !== task.id" @click="toggleStatus(task)" class="btn-toggle">Changer statut</button>
+          <button v-if="editingTaskId !== task.id" @click="startEdit(task)" class="btn-toggle">Modifier</button>
+          <button v-if="editingTaskId === task.id" @click="saveEdit(task.id)" class="btn-toggle">Sauvegarder</button>
+          <button v-if="editingTaskId === task.id" @click="cancelEdit" class="btn-delete">Annuler</button>
         </div>
       </li>
     </ul>
@@ -33,10 +47,16 @@ import { useTaskStore } from '../stores/tasks'
 const taskStore = useTaskStore()
 const newTask = ref({ title: '', description: '' })
 
+// Variables pour édition
+const editingTaskId = ref(null)
+const editTitle = ref('')
+const editDescription = ref('')
+
 onMounted(() => {
   taskStore.fetchTasks()
 })
 
+// Ajouter tâche
 const addTask = async () => {
   if (!newTask.value.title) return
   await taskStore.createTask({ ...newTask.value })
@@ -44,15 +64,38 @@ const addTask = async () => {
   newTask.value.description = ''
 }
 
+// Supprimer tâche
 const deleteTask = async (id) => {
   await taskStore.deleteTask(id)
 }
 
+// Changer statut
 const toggleStatus = async (task) => {
   const newStatus = task.status === 'pending' ? 'completed' : 'pending'
   await taskStore.updateTask(task.id, { ...task, status: newStatus })
 }
 
+// Éditer une tâche
+const startEdit = (task) => {
+  editingTaskId.value = task.id
+  editTitle.value = task.title
+  editDescription.value = task.description
+}
+
+// Annuler édition
+const cancelEdit = () => {
+  editingTaskId.value = null
+  editTitle.value = ''
+  editDescription.value = ''
+}
+
+// Sauvegarder édition
+const saveEdit = async (id) => {
+  await taskStore.updateTask(id, { title: editTitle.value, description: editDescription.value })
+  cancelEdit()
+}
+
+// Retour page précédente
 const goBack = () => window.history.back()
 </script>
 
